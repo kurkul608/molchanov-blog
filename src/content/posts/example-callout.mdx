@@ -1,0 +1,28 @@
+---
+title: 'Example post: the Callout component'
+description: 'A draft example that shows how MDX components render in HTML and in the Markdown copy for agents.'
+published: 2026-10-04
+tags: [example, mdx]
+pillar: frontend-to-ai
+draft: true
+---
+
+{/* This post is a draft. It never ships to production. Delete it once real posts exist. */}
+
+## What does this post show?
+
+This draft shows one MDX component, `Callout`, and its Markdown fallback. The HTML page renders a styled box. The Markdown copy at `/blog/example-callout.md` renders a blockquote.
+
+<Callout type="note">
+  The Markdown copy of this box starts with **Note:**. Agents read it as plain text.
+</Callout>
+
+<Callout type="warning" title="Remember">
+  Every new MDX component needs a Markdown fallback in the same slice. A unit test fails if one is missing.
+</Callout>
+
+## How do links behave?
+
+Relative links, like the [about page](/about/), become absolute URLs in the Markdown copy.
+
+TODO: author to write the first real post.

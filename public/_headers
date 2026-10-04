@@ -1,0 +1,8 @@
+# Markdown copies of pages (see docs/design/markdown-for-agents.md, section 7.4).
+/*.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex
+  Content-Signal: search=yes, ai-input=yes, ai-train=yes
+
+/llms*.txt
+  Content-Type: text/plain; charset=utf-8

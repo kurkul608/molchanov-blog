@@ -1,0 +1,13 @@
+.card {
+  margin-bottom: 3rem;
+}
+
+.name {
+  margin-bottom: 0.25rem;
+}
+
+.tagline {
+  margin-top: 0;
+  color: var(--color-muted);
+  font-size: 1.15rem;
+}

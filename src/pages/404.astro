@@ -1,0 +1,16 @@
+---
+import { BaseLayout } from '@app/layouts';
+import { pageTitle } from '@app/seo';
+---
+
+<BaseLayout
+  seo={{
+    title: pageTitle('Page not found'),
+    description: 'This page does not exist.',
+    path: '/404/',
+    noindex: true,
+  }}
+>
+  <h1>Page not found</h1>
+  <p>This page does not exist. Go to the <a href="/">home page</a> or the <a href="/blog/">blog</a>.</p>
+</BaseLayout>

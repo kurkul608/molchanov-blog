@@ -1,0 +1,15 @@
+.toggle {
+  min-width: 4.5rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  border-color: var(--color-accent);
+}

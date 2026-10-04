@@ -1,0 +1,39 @@
+---
+import '../styles/global.css';
+import { Analytics } from '@app/analytics';
+import { SeoHead, type SeoProps } from '@app/seo';
+import { ThemeToggle, THEME_INIT_SCRIPT } from '@features/theme-toggle';
+import { Footer } from '@widgets/footer';
+import { Header } from '@widgets/header';
+import { SITE_LANG, SITE_NAME } from '@shared/config';
+
+interface Props {
+  seo: SeoProps;
+}
+
+const { seo } = Astro.props;
+---
+
+<!doctype html>
+<html lang={SITE_LANG}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script is:inline set:html={THEME_INIT_SCRIPT} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="generator" content={Astro.generator} />
+    <SeoHead {...seo} />
+    <Analytics />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Header siteName={SITE_NAME} currentPath={Astro.url.pathname}>
+      <ThemeToggle client:idle />
+    </Header>
+    <main id="main" class="page" tabindex="-1">
+      <slot />
+    </main>
+    <Footer year={new Date().getFullYear()} />
+  </body>
+</html>

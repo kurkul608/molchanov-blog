@@ -1,0 +1,26 @@
+---
+import { BaseLayout } from '@app/layouts';
+import { LATEST_POSTS_COUNT } from '@app/agent-markdown';
+import { getPublishedPosts, toPostSummary } from '@entities/post';
+import { AuthorCard } from '@widgets/author-card';
+import { PostList } from '@widgets/post-list';
+import { SITE_DESCRIPTION, SITE_NAME } from '@shared/config';
+
+const posts = (await getPublishedPosts()).slice(0, LATEST_POSTS_COUNT).map(toPostSummary);
+---
+
+<BaseLayout
+  seo={{
+    title: `${SITE_NAME}: frontend engineer moving into AI engineering`,
+    description: SITE_DESCRIPTION,
+    path: '/',
+    markdownPath: '/index.md',
+  }}
+>
+  <AuthorCard />
+  <section aria-labelledby="latest-posts">
+    <h2 id="latest-posts">Latest posts</h2>
+    <PostList posts={posts} />
+    {posts.length > 0 && <p><a href="/blog/">All posts</a></p>}
+  </section>
+</BaseLayout>

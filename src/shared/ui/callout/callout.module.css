@@ -1,0 +1,28 @@
+.callout {
+  margin: 1.5rem 0;
+  padding: 0.875rem 1rem;
+  border-inline-start: 4px solid var(--callout-accent, var(--color-accent));
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.callout[data-type='tip'] {
+  --callout-accent: var(--color-success);
+}
+
+.callout[data-type='warning'] {
+  --callout-accent: var(--color-warning);
+}
+
+.label {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+}
+
+.body > :first-child {
+  margin-top: 0;
+}
+
+.body > :last-child {
+  margin-bottom: 0;
+}

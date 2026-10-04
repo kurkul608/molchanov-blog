@@ -1,0 +1,37 @@
+---
+import { render } from 'astro:content';
+import { BaseLayout } from '@app/layouts';
+import { pageTitle } from '@app/seo';
+import { getStaticPages, pageMarkdownPath, pagePath, type StaticPage } from '@entities/page';
+import { mdxComponents } from '@shared/ui';
+
+export async function getStaticPaths() {
+  const pages = await getStaticPages();
+  return pages.map((page) => ({ params: { page: page.id }, props: { page } }));
+}
+
+interface Props {
+  page: StaticPage;
+}
+
+const { page } = Astro.props;
+const { Content } = await render(page);
+---
+
+<BaseLayout
+  seo={{
+    title: pageTitle(page.data.title),
+    description: page.data.description,
+    path: pagePath(page.id),
+    markdownPath: pageMarkdownPath(page.id),
+    breadcrumbs: [
+      { name: 'Home', path: '/' },
+      { name: page.data.title, path: pagePath(page.id) },
+    ],
+  }}
+>
+  <article class="prose">
+    <h1>{page.data.title}</h1>
+    <Content components={mdxComponents} />
+  </article>
+</BaseLayout>

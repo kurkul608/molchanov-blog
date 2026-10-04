@@ -1,0 +1,54 @@
+---
+import { DEFAULT_OG_IMAGE, SITE_LANG, SITE_NAME } from '@shared/config';
+import { absoluteUrl, toIsoDate } from '@shared/lib';
+import { buildJsonLd, serializeJsonLd, type ArticleInput, type Breadcrumb } from './lib/json-ld';
+
+export interface SeoProps {
+  /** Full `<title>` text. Must be unique per page. */
+  title: string;
+  description: string;
+  /** Site path of this page, for example `/blog/my-post/`. Used for the canonical URL. */
+  path: string;
+  /** Site path of the Markdown copy, for example `/blog/my-post.md`. */
+  markdownPath?: string | undefined;
+  image?: string | undefined;
+  article?: ArticleInput | undefined;
+  breadcrumbs?: readonly Breadcrumb[] | undefined;
+  noindex?: boolean | undefined;
+}
+
+type Props = SeoProps;
+
+const { title, description, path, markdownPath, image, article, breadcrumbs, noindex = false } = Astro.props;
+const canonical = absoluteUrl(path);
+const ogImage = absoluteUrl(image ?? DEFAULT_OG_IMAGE);
+const jsonLd = serializeJsonLd(buildJsonLd({ article, breadcrumbs }));
+---
+
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+{noindex && <meta name="robots" content="noindex" />}
+{markdownPath && <link rel="alternate" type="text/markdown" href={absoluteUrl(markdownPath)} />}
+<link rel="alternate" type="application/rss+xml" title={`${SITE_NAME} RSS`} href={absoluteUrl('/rss.xml')} />
+<link rel="sitemap" href="/sitemap-index.xml" />
+
+<meta property="og:type" content={article ? 'article' : 'website'} />
+<meta property="og:site_name" content={SITE_NAME} />
+<meta property="og:locale" content={SITE_LANG === 'en' ? 'en_US' : SITE_LANG} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta property="og:image" content={ogImage} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+{article && <meta property="article:published_time" content={toIsoDate(article.published)} />}
+{article?.updated && <meta property="article:modified_time" content={toIsoDate(article.updated)} />}
+{article?.tags.map((tag) => <meta property="article:tag" content={tag} />)}
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage} />
+
+<script type="application/ld+json" set:html={jsonLd} />

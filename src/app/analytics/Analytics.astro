@@ -1,0 +1,15 @@
+---
+import { UMAMI } from '@shared/config';
+
+// Backup analytics (Umami). Production builds only. `defer` keeps rendering unblocked.
+const enabled = import.meta.env.PROD;
+---
+
+{
+  enabled && (
+    <>
+      <script is:inline defer src={UMAMI.scriptUrl} data-website-id={UMAMI.websiteId} />
+      <script is:inline defer src={UMAMI.recorderUrl} data-website-id={UMAMI.websiteId} />
+    </>
+  )
+}

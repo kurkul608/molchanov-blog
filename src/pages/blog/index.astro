@@ -1,0 +1,25 @@
+---
+import { BaseLayout } from '@app/layouts';
+import { pageTitle } from '@app/seo';
+import { getPublishedPosts, toPostSummary } from '@entities/post';
+import { PostList } from '@widgets/post-list';
+import { SITE_NAME } from '@shared/config';
+
+const posts = (await getPublishedPosts()).map(toPostSummary);
+---
+
+<BaseLayout
+  seo={{
+    title: pageTitle('Blog'),
+    description: `All posts by ${SITE_NAME} on AI engineering, frontend at scale, and the move from frontend to AI.`,
+    path: '/blog/',
+    markdownPath: '/blog.md',
+    breadcrumbs: [
+      { name: 'Home', path: '/' },
+      { name: 'Blog', path: '/blog/' },
+    ],
+  }}
+>
+  <h1>Blog</h1>
+  <PostList posts={posts} />
+</BaseLayout>
