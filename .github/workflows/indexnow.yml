@@ -1,0 +1,39 @@
+name: IndexNow
+
+# After each push to main, wait until Cloudflare Pages serves the new commit,
+# then tell IndexNow (Bing, Yandex, and others) which pages changed.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      submit_all:
+        description: Submit every page, not only changed ones
+        type: boolean
+        default: false
+
+concurrency:
+  group: indexnow
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Save the live manifest first, before the new deploy replaces it.
+      - name: Save the live manifest
+        run: curl -sf "https://molchanov.blog/deploy-manifest.json?t=$(date +%s)" -o /tmp/old-manifest.json || echo "No live manifest yet."
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Wait for deploy and submit
+        env:
+          OLD_MANIFEST: /tmp/old-manifest.json
+          EXPECTED_SHA: ${{ github.event_name == 'push' && github.sha || '' }}
+          SUBMIT_ALL: ${{ inputs.submit_all && 'true' || 'false' }}
+        run: node scripts/indexnow-submit.mjs

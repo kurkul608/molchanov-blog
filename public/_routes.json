@@ -1,5 +1,5 @@
 {
   "version": 1,
   "include": ["/*"],
-  "exclude": ["/_astro/*", "/images/*", "/*.md", "/*.txt", "/*.xml", "/*.ico", "/*.png", "/*.svg", "/*.webp", "/*.woff2"]
+  "exclude": ["/_astro/*", "/images/*", "/*.md", "/*.txt", "/*.xml", "/*.ico", "/*.png", "/*.svg", "/*.webp", "/*.woff2", "/deploy-manifest.json"]
 }
