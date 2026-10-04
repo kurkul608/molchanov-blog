@@ -10,7 +10,7 @@ export const AUTHOR = {
   tagline: 'Applied AI engineer with a fullstack background',
   pitch:
     'I design multi-agent LLM systems in TypeScript: an orchestrator plans and verifies, cheaper subagents research in parallel. 8+ years of shipping web products with React and Node.js.',
-  location: 'Buenos Aires',
+  location: 'Buenos Aires, Argentina',
   email: 'petr.molchanov98@gmail.com',
   links: [
     { label: 'LinkedIn', href: 'https://www.linkedin.com/in/petr-molchanov' },

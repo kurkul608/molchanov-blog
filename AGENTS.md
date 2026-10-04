@@ -22,8 +22,9 @@ This applies to everything committed: source code, identifiers, comments, Markdo
 
 This repository is public.
 
-- Never name the author's current employer.
-- Do not describe the author's projects or metrics at the current job. The author approves each item first.
+- The current employer, job title, and dates may be named (they are public on LinkedIn). Approved public line: the author builds the React/TypeScript frontend of a cloud platform for well data and the AI tooling the engineering team uses.
+- Do not describe internal systems, code, data, or metrics from the current job beyond that line. The author approves each new item first.
+- Never combine the employer with any job-search signal ("open to work", availability, hiring).
 - Never mention the author's job search, applications, or job-search tooling.
 - Describe past work in general terms ("a large legacy React 17 codebase"), without client or company names, unless the author explicitly approves the name.
 - Never invent metrics, results, or experience. If a number is unknown, ask or leave it out.

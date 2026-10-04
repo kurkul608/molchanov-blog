@@ -2,7 +2,7 @@ import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 
-export const PILLARS = ['ai-engineering', 'frontend-at-scale', 'frontend-to-ai'] as const;
+export const PILLARS = ['multi-agent-systems', 'trustworthy-agents', 'fullstack-for-ai'] as const;
 
 const posts = defineCollection({
   loader: glob({ pattern: '**/*.mdx', base: './src/content/posts' }),

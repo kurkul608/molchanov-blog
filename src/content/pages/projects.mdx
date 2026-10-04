@@ -1,8 +1,38 @@
 ---
 title: Projects
-description: 'Open-source projects by Petr Molchanov.'
+description: 'Projects by Petr Molchanov: a multi-agent research agent for company due diligence, this blog, an AI tutor app, and a task tracker designed for ADHD brains.'
 ---
 
-TODO: author to write. List open-source projects with one line each: what it does and the stack.
+## Multi-agent research agent
 
-Code lives on [GitHub](https://github.com/kurkul608).
+A multi-agent system for company due diligence. You give it a company name, and it returns one HTML report that reads like an investigation, with sources for every claim.
+
+- An orchestrator model plans the run, writes hypotheses about the company, and checks the evidence. It never calls data APIs or parses data itself.
+- Eight subagents on cheaper models collect data in parallel: registry records, financial filings, ownership graphs, court records, public contracts, and news.
+- Every claim has a source and a confidence tag. Refuted hypotheses stay in the report.
+- Findings go into a SQLite knowledge base, so each new run starts from what earlier runs found.
+
+Stack: Node.js, Claude subagents (Sonnet and Haiku), SQLite.
+Status: private for now. An open-source version and a live demo for this site are in progress.
+
+## molchanov.blog
+
+This site. Astro with React components and Feature-Sliced Design, hosted on Cloudflare Pages. Every page has a clean Markdown copy for AI agents, served by content negotiation. After each deploy, changed pages go to IndexNow.
+
+Source: [github.com/kurkul608/molchanov-blog](https://github.com/kurkul608/molchanov-blog)
+
+## AI tutor for a 523-lesson course
+
+A local web app that teaches the AI Engineering from Scratch curriculum lesson by lesson. The AI tutor sits in a resizable chat panel next to the lesson and checks your progress at each checkpoint.
+
+Stack: React, Vite, Tailwind CSS, Fastify, SQLite, Claude API and Claude Agent SDK.
+Status: moving to its own open-source repository, with a demo.
+
+## Task tracker for ADHD brains
+
+A self-hosted task tracker designed for ADHD brains. It has a daily capacity bar, a morning rollover for unfinished tasks, and a backburner for ideas that are not for today.
+
+Stack: Fastify, Prisma, PostgreSQL, React, Zustand. 147 tests run against a real database.
+Status: preparing a source-available release, free for personal use.
+
+More code lives on [GitHub](https://github.com/kurkul608).
