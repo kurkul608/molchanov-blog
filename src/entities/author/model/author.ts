@@ -9,7 +9,7 @@ export const AUTHOR = {
   jobTitle: 'Applied AI Engineer',
   tagline: 'Applied AI engineer with a fullstack background',
   pitch:
-    'I build agents that do real engineering work. They pick up Jira tickets, open pull requests, and write e2e tests: 100+ tasks a month in production.',
+    'I design multi-agent LLM systems in TypeScript: an orchestrator plans and verifies, cheaper subagents research in parallel. 8+ years of shipping web products with React and Node.js.',
   location: 'Buenos Aires',
   email: 'petr.molchanov98@gmail.com',
   links: [
