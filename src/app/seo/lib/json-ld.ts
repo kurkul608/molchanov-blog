@@ -14,7 +14,8 @@ export function personSchema(): JsonLdNode {
     name: AUTHOR.name,
     jobTitle: AUTHOR.tagline,
     url: `${SITE_URL}/`,
-    sameAs: AUTHOR.links.map((link) => link.href),
+    email: `mailto:${AUTHOR.email}`,
+    sameAs: AUTHOR.links.map((link) => link.href).filter((href) => href.startsWith('https://')),
     homeLocation: { '@type': 'Place', name: AUTHOR.location },
   };
 }
