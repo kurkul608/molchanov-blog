@@ -1,6 +1,6 @@
 # molchanov.blog
 
-Personal technical blog of Petr Molchanov, a frontend engineer moving into AI engineering.
+Personal technical blog of Petr Molchanov, an applied AI engineer with a fullstack background.
 Live at https://molchanov.blog.
 
 The site is static HTML with almost no JavaScript. Every page also has a clean Markdown copy for AI agents.

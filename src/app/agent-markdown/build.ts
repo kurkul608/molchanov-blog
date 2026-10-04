@@ -30,6 +30,7 @@ export function buildHomeMarkdown(posts: readonly Post[]): string {
   const links = AUTHOR.links.map((link) => `- [${link.label}](${link.href})`).join('\n');
   const body = [
     `${AUTHOR.tagline}. Based in ${AUTHOR.location}.`,
+    AUTHOR.pitch,
     '## Latest posts',
     latest.length > 0 ? latest.map(postListItem).join('\n') : 'No posts yet.',
     `All posts: ${absoluteUrl('/blog.md')}`,

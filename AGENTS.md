@@ -5,7 +5,7 @@
 
 ## Project
 
-Personal technical blog of Petr Molchanov, a frontend engineer moving into AI engineering.
+Personal technical blog of Petr Molchanov, an applied AI engineer with a fullstack background.
 Domain: https://molchanov.blog. The goal is to show real engineering work to readers and to search engines (SEO), and to be cited by AI search (GEO).
 
 ## Language — HARD RULE
@@ -22,7 +22,8 @@ This applies to everything committed: source code, identifiers, comments, Markdo
 
 This repository is public.
 
-- Never name the author's current employer or describe its internal code, data, or systems.
+- Never name the author's current employer.
+- The author's own role and results at the current job may be described without the company name ("at my current job"): what he built, the stack, and metrics he has approved (for example, an agent that handles 100+ tasks a month). Never describe the employer's internal code, data, business domain, or anything that identifies the company.
 - Never mention the author's job search, applications, or job-search tooling.
 - Describe past work in general terms ("a large legacy React 17 codebase"), without client or company names, unless the author explicitly approves the name.
 - Never invent metrics, results, or experience. If a number is unknown, ask or leave it out.

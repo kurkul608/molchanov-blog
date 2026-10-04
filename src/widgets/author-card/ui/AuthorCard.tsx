@@ -10,7 +10,7 @@ export function AuthorCard() {
       <p className={styles.tagline}>
         {AUTHOR.tagline}. Based in {AUTHOR.location}.
       </p>
-      <p>Notes on building AI tools in TypeScript, frontend performance, and the move from frontend to AI engineering.</p>
+      <p>{AUTHOR.pitch}</p>
       <SocialLinks />
     </section>
   );
