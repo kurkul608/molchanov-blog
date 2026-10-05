@@ -1,0 +1,195 @@
+---
+title: 'Multi-agent orchestrator pattern: one thinks, many work'
+description: 'The multi-agent orchestrator pattern I use: an expensive orchestrator plans and validates, 8 cheaper Claude subagents collect data. Roster, failures, checklist.'
+published: 2026-10-04
+tags: [multi-agent-systems, orchestrator, claude-code, subagents, llm-cost]
+pillar: multi-agent-systems
+draft: false
+---
+
+The multi-agent orchestrator pattern splits an LLM system into two kinds of work. One expensive model plans, writes hypotheses, delegates and checks results. Cheaper subagents do the mechanical work: API calls, scraping, parsing, code and rendering.
+
+I call the rule behind it the Orchestrator Law. I wrote it into the constitution of my company due diligence agent, and this post shows how it works, where it broke, and a checklist you can copy.
+
+**TL;DR**
+
+- The orchestrator is forbidden to call data APIs, scrape, parse or write code. It plans, validates and merges.
+- My research agent runs 8 defined subagents: 1 on Haiku, 7 on Sonnet. A full run uses 10 roles plus one verifier per hypothesis.
+- Work flows through 6 phases, with a loop back when verification finds a new lead.
+- A full investigation takes about 2 hours of runtime. By hand, the same work took me from 2 days to a week.
+- The law broke twice in practice: the orchestrator wrote code itself, and subagents invented JSON shapes that loaded 0 rows while ingest reported "ok".
+
+## What is the multi-agent orchestrator pattern?
+
+It is a multi-agent system architecture where one model owns the reasoning and many workers own the I/O. The orchestrator never touches raw data. It reads short summaries, decides what to check next, and sends the next batch of tasks.
+
+The idea is old in software. A tech lead who writes every SQL query by hand has no time to think about the design. LLM agents have the same problem, plus one more: every token the top model reads costs top-model money and fills its context window.
+
+In my system the orchestrator is the main Claude Code session on the top model. The workers are [Claude Code subagents](https://code.claude.com/docs/en/sub-agents), each defined in a Markdown file with its own prompt, tools and pinned model. The official docs list "control costs by routing tasks to faster, cheaper models like Haiku" as one reason to use subagents. That is the whole economic idea in one line.
+
+## The Orchestrator Law
+
+The Orchestrator Law is a short section in the project's `CLAUDE.md`. It says what the top model may do and what it must delegate.
+
+**The orchestrator may:**
+
+- plan the investigation and pick the next phase
+- write hypotheses about the company and decide which ones to verify
+- delegate tasks to subagents
+- validate what comes back, cross-check layers and log corrections
+- merge results and make the final calls
+
+**The orchestrator must not:**
+
+- call data APIs
+- scrape pages or drive the browser
+- parse JSON, PDF or HTML
+- write module code
+- generate the HTML report
+
+The law ends with a self-check the model runs at the end of every turn: "Did I do mechanical work myself? If yes, delegate."
+
+Why so strict? A mixed rule like "delegate when it makes sense" fails quietly. The top model is good at almost everything, so it always finds a reason to "just quickly" parse that file. A flat ban is easier to follow and easier to audit.
+
+## How does model tiering work across agents?
+
+Model tiering means each agent gets the cheapest model that can do its job well, and the choice is pinned in the agent's frontmatter. It is never left to chance or to whatever the main session runs.
+
+My rule of thumb:
+
+- **Haiku** for simple, structured extraction: call a known API wrapper, map fields, return JSON.
+- **Sonnet** for collection that needs judgment: web search, scraping, browser work, code, report rendering.
+- **Top model** only where the logic is hard: planning, hypotheses, validation, synthesis. In my system that is the orchestrator alone.
+
+Here is the real roster of the research agent, with neutral names for the data sources:
+
+| Agent | Model | Job |
+|---|---|---|
+| orchestrator | top model | plans, writes and validates hypotheses, delegates, merges |
+| company-core | haiku | company registry record, industry codes, directors, founders, financial filings by year |
+| graph-affil | sonnet | ownership graph up to 4 levels (nodes and edges) |
+| projects-discovery | sonnet | what the company actually built, with role and confidence, plus a list of what it did not do |
+| counterparties | sonnet | who pays the company: court records, public procurement customers, owner-linked clients |
+| risk-signals | sonnet | bankruptcy, court cases, enforcement debt, tax debt, blacklists |
+| construction | sonnet | permits, delays, industry rating, guild membership |
+| news-web | sonnet | news and reputation events, dated, with sentiment |
+| hypothesis-verify | sonnet | checks one hypothesis with 1 to 3 targeted pulls, returns a verdict |
+
+Two more roles run as general-purpose Sonnet agents during a full run: one maps who designs the group's buildings, one builds the contacts layer.
+
+I have no token or cost logs for this project, so I can't give you a savings number. The logic is still simple. Collectors read the bulky stuff: raw API responses, HTML pages, ownership graphs that can reach thousands of nodes. If the top model read all of that, you would pay top-tier prices for the cheapest part of the job. With the split, the orchestrator reads short JSON summaries and spends its tokens on decisions.
+
+## The 6-phase investigation loop
+
+The loop is what turns parallel data collection into an investigation. Each phase has a clear owner, and the orchestrator decides when to move on or go back.
+
+```text
+user: "investigate <name | website | registry ID>"
+            |
+            v
+ORCHESTRATOR (top model): plans, writes hypotheses, validates
+  forbidden: API calls, scraping, parsing, code, HTML
+            |
+  Phase 1  identity and core -> one registry ID (a gate)
+            |
+  Phase 2  parallel fan-out, one message, one file per agent:
+           company-core  graph-affil  projects  counterparties
+           risk  construction  news-web  designer  contacts
+            |
+  Phase 3  orchestrator picks hypotheses from the catalog
+            |
+  Phase 4  N x hypothesis-verify, in parallel
+            |  new lead? -> back to phase 2 or 3
+            v
+  Phase 5  distress score, synthesis, timeline
+            |
+  Phase 6  report agent -> one self-contained HTML file
+```
+
+Two details matter more than the diagram.
+
+**Independent tasks go out in one message.** All collectors in phase 2 start in the same turn, so they run in parallel instead of one after another.
+
+**Each agent writes its own file.** A collector writes `research/<id>-<layer>.json` and nothing else. Two agents never write to the same file, so there are no write collisions and no half-merged JSON. The orchestrator merges later, after it validates.
+
+Phase 1 is a gate. I learned that the hard way. Once, the identification step found only a look-alike company with a one-letter name difference. It even wrote "target not confirmed", and the orchestrator still launched 5 to 7 parallel collectors on the wrong entity. An unconfirmed identity multiplies waste by the number of agents. Now the rule is: no confirmed registry ID, no fan-out.
+
+The verify step is where the orchestrator earns its price. In two investigations it logged 8 corrections where collectors disagreed or made mistakes. Examples: a former company name read as a separate contractor, a procedural filing read as a bankruptcy signal, and parent-only accounts mistaken for group results. A `corrections[]` field is cheap, and it proves the validator role does real work.
+
+## Where did the pattern break?
+
+It broke in two places, and both are more useful than the parts that worked.
+
+### The orchestrator did mechanical work anyway
+
+The law was in `CLAUDE.md`. The model broke it.
+
+In a side project inside the same repo, one layer "was being built by a subagent but was actually written directly in the primary session". Two investigations also got their own bespoke report builders, 781 and 872 lines long, instead of using the generic renderer. That is a lot of top-model output spent on mechanical code.
+
+The lesson: rules in a prompt help, but they don't enforce anything. The fix is [tool permissions](https://code.claude.com/docs/en/permissions) per role. If the orchestrator has no Write or Bash tool, it can't write the report builder, no matter how helpful it wants to be. And invest once in a generic renderer, so there is no reason to build a new one.
+
+### Subagents invented their own JSON shapes
+
+Every collector had an output contract. In practice, subagents still improvised:
+
+- A risk layer came out named `-risks` instead of `-risk`, and ingest skipped it silently.
+- A contacts layer used a nested schema. Ingest loaded 0 rows, and the raw-layers table still said "ok".
+- One layer used `no-data` as a confidence value. A fallback passed it straight into a database CHECK constraint.
+
+"Ingested ok" meant nothing without row counts. The fix was exact file names and a flat schema in every subagent prompt, plus a `SELECT` check after ingest. The better fix is to validate each layer at the boundary with JSON Schema or Zod and fail loudly.
+
+This is the deeper point. A cheap model follows the shape you show it, and it fills gaps with its own guesses. The orchestrator can catch some of that, but a schema check catches it for free and every time.
+
+### A smaller failure: shared quotas
+
+Parallel collectors share the same API quotas. On one run they drained a 100-requests-per-day free tier together before the collectors finished. In multi-agent systems the scarce resource is often a shared quota. Cache every response and route quota-bound calls through one agent or the cache.
+
+## Does it work in a real run?
+
+Yes. The full research agent ran 5 real investigations. Each one produced an HTML report where every claim has a source and a confidence tag, and all findings went into a 14-table SQLite knowledge base.
+
+The biggest run was a pre-pitch check on a large developer group. The agent mapped an ownership graph of 209 companies and 329 links and found the group's in-house design bureau. The client was surprised that we knew about it. The whole run took about 2 hours, not counting the code and agent tooling I keep improving between runs. I tell the full story, including why we still lost the deal, in the [AI research agent case study](/blog/ai-research-agent-case-study/).
+
+## When should you use this pattern, and when not?
+
+Use the orchestrator pattern when the work has many independent, bulky data tasks and a reasoning step on top. Skip it when one model can hold the whole task in its context.
+
+**Use it when:**
+
+- the task splits into 4 or more independent collection jobs that can run in parallel
+- raw inputs are large (pages, graphs, filings) but the decision needs only a summary
+- results must be cross-checked before you trust them
+- you run the same workflow many times, so pinned agent specs pay off
+
+**Skip it when:**
+
+- the job is one short chain of steps; a single agent with tools is simpler
+- the steps depend on each other so tightly that nothing can run in parallel
+- you have no way to validate subagent output; then you only multiply errors
+- a shared quota or rate limit allows just a few calls a day; parallel agents will drain it
+
+## A checklist you can copy
+
+This is what I would set up on day one for any new multi-agent system:
+
+1. **Write the orchestrator's allow list and deny list.** Plan, hypothesize, delegate, validate, merge. No APIs, no scraping, no parsing, no code, no rendering.
+2. **Enforce it with tool permissions.** Remove Write and Bash from the orchestrator role where your agent framework allows it.
+3. **Add the end-of-turn self-check.** "Did I do mechanical work myself? If yes, delegate."
+4. **Pin a model in every agent's frontmatter.** Haiku for extraction, Sonnet for collection and code, the top model only for hard reasoning.
+5. **Give every subagent a fixed output schema and an exact file name.** One file per agent, so parallel writes never collide.
+6. **Validate at the boundary.** JSON Schema or Zod on every layer, and fail loudly. Check row counts after any ingest.
+7. **Make identity a gate.** No confirmed key, no fan-out.
+8. **Launch independent tasks in one message.** Sequential launches waste wall-clock time.
+9. **Log corrections.** A `corrections[]` field shows what the validator caught.
+10. **Cache everything and protect shared quotas.** Check the cache before every provider call.
+
+A short summary of the research agent and its stack is on my [projects page](/projects/).
+
+## Key takeaways
+
+- The orchestrator's value is judgment. Every token it spends on parsing is a token it doesn't spend on checking.
+- Model tiering is a design decision. Pin it per agent, or the expensive model ends up doing cheap work.
+- Prompts describe the law. Tool permissions and schema validation enforce it.
+- The corrections log is the best evidence that the pattern works. Speed comes second.
+
+Building agents too? I like comparing notes: [email](mailto:petr.molchanov98@gmail.com) or [Telegram](https://t.me/kurkul608).

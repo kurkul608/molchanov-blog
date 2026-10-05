@@ -184,3 +184,9 @@ td {
     transition: none !important;
   }
 }
+
+.byline {
+  margin-top: -0.5rem;
+  color: var(--color-muted, inherit);
+  font-size: 0.95rem;
+}

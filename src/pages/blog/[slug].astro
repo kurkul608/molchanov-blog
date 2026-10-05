@@ -2,6 +2,7 @@
 import { render } from 'astro:content';
 import { BaseLayout } from '@app/layouts';
 import { pageTitle } from '@app/seo';
+import { AUTHOR } from '@entities/author';
 import { getPublishedPosts, postMarkdownPath, PostHeader, toPostSummary, type Post } from '@entities/post';
 import { mdxComponents } from '@shared/ui';
 
@@ -35,6 +36,7 @@ const { Content } = await render(post);
 >
   <article class="prose">
     <PostHeader post={summary} />
+    <p class="byline">By <a href="/about/" rel="author">{AUTHOR.name}</a> · {AUTHOR.jobTitle}</p>
     <Content components={mdxComponents} />
   </article>
 </BaseLayout>

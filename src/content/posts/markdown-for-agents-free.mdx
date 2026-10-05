@@ -1,0 +1,239 @@
+---
+title: 'Markdown for Agents without the Pro plan: serve AI crawlers'
+description: 'Cloudflare sells Markdown for Agents on Pro plans. I serve Markdown to AI crawlers on the Free plan with build-time .md files, llms.txt, and Accept negotiation.'
+published: 2026-10-04
+tags: [markdown-for-agents, llms-txt, cloudflare-pages, geo, ai-agents]
+pillar: fullstack-for-ai
+draft: false
+---
+
+Cloudflare's Markdown for Agents turns HTML into Markdown when a client sends `Accept: text/markdown`. It needs a Pro plan or higher. This blog does the same thing on the Free plan, and the Markdown is cleaner, because I serve the original source instead of a copy rebuilt from HTML.
+
+You can check it right now with one `curl` command against this site.
+
+**TL;DR**
+
+- The home page is 16,424 bytes of HTML and 788 bytes of Markdown (measured on October 4, 2026). An agent reads about 21 times less text.
+- Every page has a static `.md` copy, built at deploy time from the MDX source by a small remark pipeline.
+- A 40-line Cloudflare Pages Functions middleware does content negotiation on `Accept` with q-values: browsers get HTML, agents get Markdown on the same URL.
+- `X-Robots-Tag: noindex` and a canonical `Link` header keep the Markdown copies out of Google's index.
+- Cost: $0. Static files are free and unlimited, and `_routes.json` keeps asset requests away from the 100,000 daily function requests.
+
+## What is Markdown for Agents?
+
+Markdown for Agents is a Cloudflare feature that converts a page's HTML to Markdown at the edge when the request's `Accept` header includes `text/markdown`. The [official docs](https://developers.cloudflare.com/fundamentals/reference/markdown-for-agents/) say it is available on Pro, Business, and Enterprise plans.
+
+The idea is good. AI agents and AI search tools fetch web pages, and HTML is mostly noise for them: navigation, scripts, class names, footers. Every byte of that costs tokens. According to the same docs, Cloudflare's response also adds an `x-markdown-tokens` header with a token estimate and a `Content-Signal` header that says how the content may be used.
+
+I wanted all of this for my blog, which is one of my [open-source projects](/projects/). It runs on Cloudflare Pages on the Free plan, and I write posts in MDX. So the Markdown already exists before any HTML is built. Converting HTML back to Markdown would throw away information I already have.
+
+## Cloudflare Pro vs the free approach
+
+The free approach gives an agent the same headers and the same negotiation, plus files it can find without negotiation. Here is the side-by-side comparison.
+
+| | Cloudflare Markdown for Agents | This blog (Free plan) |
+|---|---|---|
+| Plan | Pro, Business, Enterprise | Free |
+| Source of the Markdown | HTML converted at the edge | Original MDX, lowered at build time |
+| `Accept: text/markdown` on the normal URL | Yes | Yes, via Pages Functions middleware |
+| Direct `.md` URLs | No | Yes, static files |
+| `/llms.txt` and `/llms-full.txt` | No | Yes |
+| `x-markdown-tokens` | Yes | Yes (estimate: characters / 4) |
+| `x-original-tokens` | Yes | No |
+| `Content-Signal` | Yes | Yes |
+| Limits | HTML only, origin response up to 2 MB | Needs Markdown or MDX sources |
+
+The direct `.md` URLs matter more than they look. Not every agent sends a custom `Accept` header. Some only follow links. A static file at a predictable URL works for them, and it works even if the function is down.
+
+## How the build-time Markdown copies work
+
+At build time, Astro writes a `.md` file next to every content page. The rule is simple: strip the trailing slash and append `.md`. The root maps to `/index.md`.
+
+| HTML page | Markdown copy |
+|---|---|
+| `/` | `/index.md` |
+| `/blog/` | `/blog.md` |
+| `/blog/<slug>/` | `/blog/<slug>.md` |
+| `/projects/` | `/projects.md` |
+
+This follows the convention from [llmstxt.org](https://llmstxt.org/): a clean Markdown version of a page at the same URL with `.md` added.
+
+Each endpoint is a thin Astro static route. The post endpoint is the whole file below:
+
+```ts
+export const GET: APIRoute<{ post: Post }> = ({ props }) => {
+  return new Response(buildPostMarkdown(props.post), {
+    headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
+  });
+};
+```
+
+The output starts with a YAML header that carries the canonical HTML URL, so an agent that cites the page cites the HTML version. Then comes an H1 from the title, then the body.
+
+### From MDX to clean Markdown
+
+Raw MDX is not clean Markdown. It has `import` lines, `{expressions}`, and JSX components like `<Callout>`. An agent should not see any of that, so I run the source through a unified pipeline:
+
+```ts
+export function mdxToMarkdown(source: string, options: MdxToMarkdownOptions): string {
+  const tree = parser.parse(source);
+  stripMdxEsm(tree);
+  lowerJsx(tree, options.fallbacks, options.onWarning);
+  absolutizeUrls(tree, options.pageUrl);
+  return `${stringifier.stringify(tree).trim()}\n`;
+}
+```
+
+The parser is `remark-parse` with `remark-mdx`, `remark-frontmatter`, and `remark-gfm`. Then three passes:
+
+1. `stripMdxEsm` removes `import`/`export` nodes, front matter, and expressions. MDX comments are expressions too, so author notes never leak.
+2. `lowerJsx` replaces each JSX element with plain Markdown. A component with a registered fallback renders its own Markdown. An unknown component keeps only its children. A component with neither is removed, and the build logs a warning.
+3. `absolutizeUrls` turns relative links and images into absolute `https://molchanov.blog/...` URLs. A Markdown file read out of context has no base URL.
+
+The fallbacks live next to each component. For example, `<Callout type="note">text</Callout>` becomes `> **Note:** text`, a blockquote any model reads correctly.
+
+<Callout type="note">
+  A unit test parses every MDX file in `src/content` and fails if it uses a component that has no Markdown fallback. A new component cannot leak raw JSX into the agent copy.
+</Callout>
+
+## How content negotiation with Accept: text/markdown works
+
+Content negotiation means one URL can return different formats, and the client says which one it wants in the `Accept` header. A Pages Functions middleware in `functions/_middleware.ts` reads that header on every HTML route. If the client prefers Markdown, it returns the static `.md` file. If not, it passes the request through and adds discovery headers to the HTML.
+
+The core of the middleware:
+
+```ts
+if (prefersMarkdown(request.headers.get('Accept'))) {
+  const asset = await env.ASSETS.fetch(new URL(markdownPath, url.origin));
+  if (asset.ok) {
+    const body = await asset.text();
+    return new Response(request.method === 'HEAD' ? null : body, {
+      status: 200,
+      headers: markdownHeaders(markdownPath, body),
+    });
+  }
+  // No Markdown version for this page: fall through to HTML.
+}
+```
+
+`env.ASSETS.fetch` reads the static file from the same deployment. No origin server, no conversion, no extra cost per byte.
+
+### The q-value rule
+
+The hard part is deciding who "prefers" Markdown. Browsers send long `Accept` headers with `*/*`, and I never want a browser to get raw Markdown. So the rule has three parts. Markdown wins only when `text/markdown` is listed explicitly. Its q-value must be greater than or equal to the q-value of `text/html`, and a missing `text/html` counts as q=0. Wildcards never select Markdown.
+
+```ts
+export function prefersMarkdown(accept: string | null | undefined): boolean {
+  if (!accept) return false;
+  const ranges = parseAccept(accept);
+  const markdown = qualityOf(ranges, 'text/markdown');
+  if (markdown <= 0) return false;
+  return markdown >= qualityOf(ranges, 'text/html');
+}
+```
+
+These are the cases from the unit tests:
+
+| `Accept` header | Response |
+|---|---|
+| `text/markdown` | Markdown |
+| `text/markdown, text/html;q=0.9` | Markdown |
+| `text/html;q=0.5, text/markdown;q=0.5` | Markdown (tie goes to Markdown) |
+| `text/html, text/markdown;q=0.5` | HTML |
+| `text/html,application/xhtml+xml,*/*;q=0.8` (a browser) | HTML |
+| `*/*` | HTML |
+
+Asset paths never reach this logic. A helper maps the URL path to a Markdown path and returns `null` for anything with a file extension, so `/favicon.svg` or `/rss.xml` go straight to `next()`.
+
+## Verify it with curl
+
+You can test all of this against molchanov.blog. Here is the request an agent would send, with the output I got on October 4, 2026 (some Cloudflare headers removed):
+
+```sh
+$ curl -sI -H "Accept: text/markdown" https://molchanov.blog/
+HTTP/2 200
+content-type: text/markdown; charset=utf-8
+cache-control: public, max-age=0, must-revalidate
+link: <https://molchanov.blog/>; rel="canonical"
+vary: Accept
+content-signal: search=yes, ai-input=yes, ai-train=yes
+x-robots-tag: noindex
+x-markdown-tokens: 197
+```
+
+And a plain request, like a browser or Googlebot sends:
+
+```sh
+$ curl -sI https://molchanov.blog/
+HTTP/2 200
+content-type: text/html; charset=utf-8
+link: <https://molchanov.blog/index.md>; rel="alternate"; type="text/markdown"
+vary: Accept
+```
+
+The HTML response points to its Markdown copy in the `Link` header. The `<head>` has the same pointer as `<link rel="alternate" type="text/markdown">`. `Vary: Accept` on both responses tells caches to store the two variants separately.
+
+For the site overview, `curl -s https://molchanov.blog/llms.txt` returns [this site's llms.txt](/llms.txt), a file in the [llms.txt format](https://llmstxt.org/): an H1 with my name, a one-line summary in a blockquote, and lists of links to every post and page as `.md` URLs. `/llms-full.txt` has the full text of every post in one file, newest first.
+
+## Does serving Markdown to AI crawlers hurt SEO?
+
+No, as long as search engines can tell which copy is the real page. Duplicate content is the risk: Google could find `/blog/post.md` and `/blog/post/` with the same text. Three things prevent that:
+
+- Every Markdown response has `X-Robots-Tag: noindex`, so it is never indexed.
+- The negotiated Markdown response has `Link: <html-url>; rel="canonical"`, pointing back to the HTML page.
+- The `.md` files are not in `sitemap.xml`. Only HTML pages are.
+
+Direct `.md` requests skip the function, so `public/_headers` sets the headers for static files:
+
+```txt
+/*.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex
+  Content-Signal: search=yes, ai-input=yes, ai-train=yes
+```
+
+The `Content-Signal` value follows the [Content Signals](https://contentsignals.org/) format that Cloudflare uses. I set all three signals to `yes`. My goal is to be read and cited by AI search tools (this is the GEO part, generative engine optimization), so I allow search, AI input, and training.
+
+## How to stay inside the Free plan quota
+
+Pages Functions requests count toward the Workers Free plan limit of 100,000 requests per day, and requests to static assets are free and unlimited, according to the [Pages Functions pricing page](https://developers.cloudflare.com/pages/functions/pricing/). So the only job is to keep static files away from the function. `public/_routes.json` does that:
+
+```json
+{
+  "version": 1,
+  "include": ["/*"],
+  "exclude": ["/_astro/*", "/images/*", "/*.md", "/*.txt", "/*.xml", "/*.ico", "/*.png", "/*.svg", "/*.webp", "/*.woff2", "/deploy-manifest.json"]
+}
+```
+
+Scripts, styles, images, feeds, `.md` files, and `llms.txt` never invoke the function. Only requests to extensionless paths do: HTML page views, plus bots and 404s on paths like `/wp-admin`. For a personal blog, 100,000 of those per day is far away.
+
+The design also fails safe. If the function breaks or the quota runs out, the static `.md` files and `llms.txt` still work, because they never depended on the function.
+
+## Limits of this approach
+
+This approach depends on one thing Cloudflare's feature does not need: Markdown sources. Be honest with yourself about these limits before you copy it.
+
+- **You need Markdown or MDX content.** Some sites have no Markdown to serve: a CMS with rich HTML fields, or a React app that renders text at runtime. They need an HTML-to-Markdown step at build time. Then the main advantage over Cloudflare's converter is gone.
+- **Every MDX component needs a fallback.** The coverage test enforces it, but it is still work for each new component.
+- **Not every agent sends `Accept: text/markdown`.** Negotiation helps only clients that ask. The others need `llms.txt`, the `.md` links, and the `Link` header to find the clean version.
+- **Direct `.md` hits have no canonical `Link` header.** `_headers` cannot compute a per-file URL, so the canonical URL for those lives in the YAML `url` field. `noindex` still applies.
+- **The token count is an estimate.** `x-markdown-tokens` is `ceil(characters / 4)`, not a real tokenizer.
+
+## What I'd do differently
+
+The current [llms.txt proposal](https://llmstxt.org/) also recommends a `rel="describedby"` link that points from each page to the `llms.txt` file that covers it. I don't send it yet, and it is a two-line change in the middleware and the head component. I'd also add `x-original-tokens` with the HTML size, so an agent can see the savings without a second request.
+
+The bigger lesson is about where the work happens. Cloudflare has to rebuild Markdown from HTML at the edge because it cannot see your sources. A static site can do the work once, at build time, and serve plain files. That pattern repeats when you build AI agents: the cheapest context is the one you prepare before the LLM asks for it. I write more about how agents share and pass context in [the multi-agent orchestrator pattern](/blog/multi-agent-orchestrator-pattern/).
+
+All the code is in the [molchanov-blog repository](https://github.com/kurkul608/molchanov-blog) on GitHub: `functions/` for the middleware, `src/shared/lib/agent-markdown/` for the pipeline. It is TypeScript with Vitest tests, and it is one of the [projects](/projects/) I keep open source.
+
+## Key takeaways
+
+- If your content is already Markdown, serve it as Markdown. Do not pay for a converter that rebuilds what you have.
+- Ship three discovery paths: `Accept: text/markdown` negotiation, direct `.md` URLs, and `/llms.txt`.
+- Never let `*/*` select Markdown. Browsers must always get HTML.
+- Protect SEO with `noindex`, a canonical `Link` header, and a sitemap with HTML pages only.
+- Exclude assets in `_routes.json`, and the Free plan quota stops being a concern.
+
+Building agents too? I like comparing notes: [email](mailto:petr.molchanov98@gmail.com) or [Telegram](https://t.me/kurkul608).

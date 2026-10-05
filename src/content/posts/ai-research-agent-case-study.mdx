@@ -1,0 +1,121 @@
+---
+title: 'My AI research agent was right. We still lost the deal.'
+description: 'An AI research agent case study: my multi-agent system mapped 209 companies and found a hidden design bureau before a pitch. Why we still lost the deal.'
+published: 2026-10-04
+tags: [ai-agents, multi-agent-systems, case-study, due-diligence, account-research]
+pillar: multi-agent-systems
+draft: false
+---
+
+Before a pitch, I ran my multi-agent research agent on the company we were pitching to. It found things that surprised the client, including an in-house design bureau inside their own group. We still lost the deal. This AI research agent case study is about why.
+
+**TL;DR**
+
+- The agent mapped an ownership graph of **209 companies and 329 links**, found **12 contractors**, and found a captive design bureau inside the group.
+- It confirmed one hard hypothesis: reported revenue grows while real sales fall and cash sits locked in escrow accounts. Two independent rating agencies had moved their outlook to negative.
+- One run takes **about two hours**. By hand, the same research takes two days to a week.
+- The client was impressed and still said no, with no real feedback. Good research does not create a need the customer does not have.
+- Next time I will use the agent to qualify fit and pain first, and only then build a tailored demo.
+
+## What was the pitch?
+
+The pitch was part of a startup-scouting program. A large regional developer group had received funding and wanted startups to work with or invest in. It organized and paid for the program, and an innovation agency ran it.
+
+My team pitched a resource-planning product for design firms that I co-built. It helps a design firm plan people and projects when the work grows faster than the team.
+
+Instead of a generic demo, I did account research before the pitch. The plan was to show the group its own situation: its real difficulties, and which of them our product could solve.
+
+## What I built and ran
+
+I built a multi-agent due diligence system, an AI research agent for company research: several LLM agents on Claude, plus a small Node.js core. You give it a company name, a website, or a registry ID. It returns one self-contained HTML report that reads like an investigation, with a source and a confidence tag on every claim.
+
+The design follows one rule: the expensive model thinks, the cheap models do the legwork. It has five parts.
+
+1. **Orchestrator.** The most capable Claude model runs the main Claude Code session. It plans the work, writes hypotheses about the company, and checks the answers. It is not allowed to call data APIs, scrape pages, or write the report.
+2. **Parallel sub-agents.** Cheaper [Claude Code subagents](https://code.claude.com/docs/en/sub-agents) on Claude Sonnet and Claude Haiku collect data at the same time: registry records, financial filings by year, the ownership graph, court records, public procurement contracts, construction permits, news, and the company's own site. Each one writes a single JSON layer.
+3. **Hypothesis checks.** The orchestrator picks hypotheses from a catalog based on the signals it sees. Each hypothesis goes to its own verifier agent, which returns a verdict: `confirmed`, `circumstantial`, `refuted`, or `no-data`. Refuted ones stay in the report.
+4. **Confidence tags.** Every claim is `confirmed` (two independent sources or a primary registry), `probable` (one reliable source), or `hypothesis` (an inference). Unknown stays `null`. Not checked never becomes "confirmed absent".
+5. **Knowledge base.** The Node.js core caches API responses, merges the layers, and loads every finding into SQLite. When a company shows up again in a later investigation, the base grows instead of starting from zero.
+
+The full pattern, with the model tiers and the failures, is in [the orchestrator pattern for multi-agent systems](/blog/multi-agent-orchestrator-pattern/).
+
+## What did the AI research agent find?
+
+The agent found the group's structure, its design supply chain, and one money problem that the public numbers hide. Each finding carries a confidence tag.
+
+| Finding | What it means | Confidence |
+|---|---|---|
+| Ownership graph: 209 companies, 329 links | The real size of the group | All 329 links `confirmed` (company registry) |
+| A chain of subsidiaries that do design work | Where design happens inside the group | Built on the `confirmed` ownership links |
+| 12 outside contractors, and which types of work go to which of them | How the group splits design and engineering work today | 5 `confirmed`, 6 `probable`, 1 `hypothesis` |
+| A captive (in-house) design bureau | The group already has its own design team | Verdict `confirmed`, confidence `probable` |
+| Reported revenue grows while real sales fall; cash is locked in escrow | Paper growth, weaker cash position | Verdict `confirmed`, confidence `probable`. Two independent rating agencies changed their outlook to negative |
+
+The escrow finding needs one line of context. In many housing markets, buyer money goes into escrow accounts and the developer gets it only when the building is done. Revenue recognized over the project can rise while real cash stays locked. This trap is written into the agent's skill file, so every run checks for it.
+
+### Which hypotheses did the agent check?
+
+The agent checked 7 hypotheses on this group. It confirmed 2, found circumstantial evidence for 2, refuted 2, and marked 1 as not applicable.
+
+| Hypothesis | Verdict |
+|---|---|
+| Paper revenue vs. cash locked in escrow | `confirmed` (probable) |
+| The group has a captive design bureau | `confirmed` (probable) |
+| Owners extract cash from the business | `circumstantial` |
+| Financial distress | `circumstantial` |
+| Shell company | `refuted` |
+| De-facto acquisition by a new owner | `refuted` |
+| The group itself is someone's captive contractor | not applicable |
+
+I like the refuted rows the most. The report shows what the agent disproved next to what it found. A reader who sees "shell company: refuted" with evidence can trust the confirmed rows more.
+
+## The pitch moment: the captive design bureau
+
+When we showed that the group has its own in-house design bureau, it surprised the client.
+
+That was the point of the demo. We did not talk about our product in the abstract. We showed the group's own structure, the subsidiaries that do design work, the 12 contractors and what each one does, and then the places where a planning tool could help.
+
+The research was right, and the client could check it against what they knew.
+
+## Why did we still lose?
+
+We lost because the group did not have the pain our product solves. The answer was a rejection with no real feedback, so what follows is my own read.
+
+Our product is for growing companies whose tech side cannot keep up with their growth. That is the moment when a design firm starts looking for a new tool.
+
+This group was not at that moment. It was already mature. It had a working solution, its own design bureau, and a stable set of contractors. For a company like that, moving to a new product is a risk with no clear payoff. A demo can be interesting and still fail the "we need this now" test.
+
+The agent's own findings pointed at this. A captive bureau and 12 contractors with clear roles describe a company that already solved its design capacity. I read those findings as proof that I understood the client. I should have also read them as a signal about fit.
+
+## What I learned
+
+The main lesson: research answers "what is true about this company?" A sale needs the answer to a second question: "does this company want to buy?" I mixed up those two questions.
+
+**Good research earns attention.** The client was impressed, and impressed is a weak buying signal. The need has to exist before the meeting.
+
+**The agent was pointed at the wrong question.** I asked it "what is this group's situation?" The better first question was "does this group have the pain we solve, right now?"
+
+**A tailored demo is an investment.** Two hours of agent time is cheap. Turning a report into a tailored demo, and preparing the team around it, takes far more team time. That cost should go to prospects that pass a fit check.
+
+**Your own data can argue against you.** The agent found the captive bureau and the stable contractor set. Both were signs of a mature buyer. I should have used them as a fit test as well.
+
+## What would I do differently?
+
+I would qualify fit and pain before building anything tailored. These are the changes I would make next time; I have not done them yet.
+
+1. **Add a "fit and pain" layer to the agent.** Score prospects by growth signals: hiring for design roles, new projects started per year, revenue growth that real sales support, new contractors added. Fast, real growth is our buyer. A mature, stable group is not.
+2. **Run a cheap pass on many prospects first.** Use a short version of the agent to rank the list. Spend the full two-hour run and the tailored demo only on the top of that list.
+3. **Ask about pain before the pitch.** One short call with the client to ask how they plan design work today. If the answer is "it works fine", the tailored demo will not change that.
+4. **Turn the escrow finding into a question.** Cash pressure can create a need to cut costs. I would ask how the group plans design capacity under that pressure, and show the finding after that.
+5. **Add a "not a fit" verdict to the report.** The hypothesis catalog already shows refuted results. A refuted "this company needs our product" belongs there too.
+
+The agent itself keeps getting better. I improve the test setup after every run, and each investigation adds to the knowledge base. You can see this project and the others I work on at [projects](/projects/), and more about my background as an applied AI engineer on the [about page](/about/).
+
+## Key takeaways
+
+- A multi-agent AI research agent can do in about two hours what takes a person two days to a week, and it can find things that surprise the client.
+- Hypothesis checks with verdicts, plus confidence tags on every claim, made the findings strong enough to put in front of the client.
+- Strong account research before a pitch proves you did the homework. A qualified lead needs fit and pain, so check those first.
+- Use the same agent to score prospects by growth signals before you invest in a tailored demo.
+
+Building agents too? I like comparing notes: [email](mailto:petr.molchanov98@gmail.com) or [Telegram](https://t.me/kurkul608).
